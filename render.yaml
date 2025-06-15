@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: cloud-pos-production
+    runtime: python
+    buildCommand: |
+      pip install -r requirements.txt
+      python manage.py collectstatic --noinput
+      python manage.py migrate
+    startCommand: gunicorn core.wsgi:application
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: False
+      - key: ALLOWED_HOSTS
+        value: cloud-pos-production.onrender.com
+      - key: DATABASE_URL
+        value: postgresql://neondb_owner:${DB_PASSWORD}@ep-curly-bush-a1m5kyty-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require
+      - key: STRIPE_PUBLISHABLE_KEY
+        value: ${STRIPE_PUBLISHABLE_KEY}
+      - key: STRIPE_SECRET_KEY
+        value: ${STRIPE_SECRET_KEY}
+      - key: STRIPE_WEBHOOK_SECRET
+        value: ${STRIPE_WEBHOOK_SECRET}
+      - key: DEFAULT_TAX_RATE
+        value: "0.08"
+      - key: LOW_STOCK_THRESHOLD
+        value: "5"
+      - key: DB_PASSWORD
+        value: ${DB_PASSWORD}

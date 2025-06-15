@@ -1,0 +1,23 @@
+RECEIPT #{{ order.id }}
+Date: {{ formatted_date }}
+
+Customer: {{ customer_name }}
+Cashier: {{ cashier_name }}
+
+ITEMS:
+{% for item in items %}
+{{ item.quantity }}x {{ item.product.name }} - ${{ item.price|floatformat:2 }} each = ${{ item.total_price|floatformat:2 }}
+{% endfor %}
+
+Subtotal: ${{ subtotal|floatformat:2 }}
+Discount ({{ order.discount }}%): -${{ discount_amount|floatformat:2 }}
+Tax ({{ order.tax_rate }}%): ${{ tax_amount|floatformat:2 }}
+-----------------------
+TOTAL: ${{ order.total|floatformat:2 }}
+
+Amount Paid: ${{ order.amount_paid|floatformat:2 }}
+Change: ${{ order.change_given|floatformat:2 }}
+
+Payment Method: {{ order.get_payment_method_display }}
+
+Thank you for your purchase!

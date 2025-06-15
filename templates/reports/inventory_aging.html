@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block content %}
+<div class="container-fluid">
+    <h2>Inventory Aging Report</h2>
+    <p>Products older than {{ aging_threshold }} days</p>
+    
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>SKU</th>
+                    <th>Current Stock</th>
+                    <th>Days in Stock</th>
+                    <th>Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in aging_products %}
+                <tr>
+                    <td>{{ product.name }}</td>
+                    <td>{{ product.sku }}</td>
+                    <td>{{ product.stock }}</td>
+                    <td>{{ product.days_in_stock }}</td>
+                    <td>${{ product.stock|mul:product.price|floatformat:2 }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5">No aging inventory found</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="alert alert-info">
+        Total Aging Inventory Value: ${{ total_aging_value|floatformat:2|intcomma }}
+    </div>
+</div>
+{% endblock %}

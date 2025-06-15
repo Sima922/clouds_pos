@@ -1,0 +1,13 @@
+0000000000000000000000000000000000000000 0426e785cd1a8f58a8551f7dbf7a427fc361d52e Sma922 <tbsmesh10@gmail.com> 1749627282 +0200	commit (initial): Ready for Render deployment
+0426e785cd1a8f58a8551f7dbf7a427fc361d52e 0426e785cd1a8f58a8551f7dbf7a427fc361d52e Sma922 <tbsmesh10@gmail.com> 1749627300 +0200	Branch: renamed refs/heads/master to refs/heads/main
+0426e785cd1a8f58a8551f7dbf7a427fc361d52e 0426e785cd1a8f58a8551f7dbf7a427fc361d52e Sma922 <tbsmesh10@gmail.com> 1749628151 +0200	Branch: renamed refs/heads/main to refs/heads/main
+0426e785cd1a8f58a8551f7dbf7a427fc361d52e b026f8e4d8f2dcdd236435a196102192cd69777a Sma922 <tbsmesh10@gmail.com> 1749640550 +0200	commit: Initial commit without secrets
+b026f8e4d8f2dcdd236435a196102192cd69777a b026f8e4d8f2dcdd236435a196102192cd69777a Sma922 <tbsmesh10@gmail.com> 1749640583 +0200	Branch: renamed refs/heads/main to refs/heads/main
+b026f8e4d8f2dcdd236435a196102192cd69777a 63ae8e7d0628513ca76e9060a819064010458391 Sma922 <tbsmesh10@gmail.com> 1749642597 +0200	commit: Initial clean commit without secrets
+63ae8e7d0628513ca76e9060a819064010458391 63ae8e7d0628513ca76e9060a819064010458391 Sma922 <tbsmesh10@gmail.com> 1749642636 +0200	Branch: renamed refs/heads/main to refs/heads/main
+63ae8e7d0628513ca76e9060a819064010458391 771d59d7796bde5aa5de42548c6b0e6cbcf174b6 Sma922 <tbsmesh10@gmail.com> 1749980217 +0200	commit: removed git
+771d59d7796bde5aa5de42548c6b0e6cbcf174b6 2cda260e652310355eaa8b1b925eb1935dbbab44 Sma922 <tbsmesh10@gmail.com> 1749980358 +0200	commit: Initial deployment configuration
+2cda260e652310355eaa8b1b925eb1935dbbab44 0ac7a1cc84dfb54566d04e7fc430d4b65c5a9740 Sma922 <tbsmesh10@gmail.com> 1749981258 +0200	commit: Initial deployment
+0ac7a1cc84dfb54566d04e7fc430d4b65c5a9740 0ac7a1cc84dfb54566d04e7fc430d4b65c5a9740 Sma922 <tbsmesh10@gmail.com> 1749981279 +0200	Branch: renamed refs/heads/main to refs/heads/main
+0ac7a1cc84dfb54566d04e7fc430d4b65c5a9740 c03aaeea6a37149f8168d85cf92af85dd79a0929 Sma922 <tbsmesh10@gmail.com> 1749982212 +0200	commit: Remove .env and ignore it
+c03aaeea6a37149f8168d85cf92af85dd79a0929 c03aaeea6a37149f8168d85cf92af85dd79a0929 Sma922 <tbsmesh10@gmail.com> 1749984470 +0200	Branch: renamed refs/heads/main to refs/heads/main

@@ -1,0 +1,138 @@
+# templates/reports/dashboard.html
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between mb-4">
+        <h2>Sales Dashboard</h2>
+        <div class="btn-group">
+            <a href="{% url 'reports:sales-report' %}?format=csv&start_date={{ start_date }}&end_date={{ end_date }}" class="btn btn-sm btn-outline-success">CSV</a>
+            <a href="{% url 'reports:sales-report' %}?format=pdf&start_date={{ start_date }}&end_date={{ end_date }}" class="btn btn-sm btn-outline-danger">PDF</a>
+            <a href="{% url 'reports:sales-report' %}?format=excel&start_date={{ start_date }}&end_date={{ end_date }}" class="btn btn-sm btn-outline-primary">Excel</a>
+        </div>
+    </div>
+
+    <!-- Date Range Form -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-3">
+                            <button type="submit" name="period" value="today" class="btn {% if period == 'today' %}btn-primary{% else %}btn-outline-secondary{% endif %}">Today</button>
+                        </div>
+                        <div class="col-md-3">
+                            <button type="submit" name="period" value="week" class="btn {% if period == 'week' %}btn-primary{% else %}btn-outline-secondary{% endif %}">Last 7 Days</button>
+                        </div>
+                        <div class="col-md-3">
+                            <button type="submit" name="period" value="month" class="btn {% if period == 'month' %}btn-primary{% else %}btn-outline-secondary{% endif %}">Last 30 Days</button>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="input-group">
+                                <input type="date" name="start_date" class="form-control" value="{{ start_date|date:'Y-m-d' }}">
+                                <input type="date" name="end_date" class="form-control" value="{{ end_date|date:'Y-m-d' }}">
+                                <button type="submit" class="btn btn-primary">Custom</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Metrics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h5>Total Sales</h5>
+                    <h4>${{ total_sales|floatformat:2|intcomma }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h5>Total Orders</h5>
+                    <h4>{{ total_orders|intcomma }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h5>Avg Order Value</h5>
+                    <h4>${{ avg_order_value|floatformat:2|intcomma }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark">
+                <div class="card-body">
+                    <h5>Items Sold</h5>
+                    <h4>{{ total_items_sold|intcomma }}</h4>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Sales Trend</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="salesChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Top Categories</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Sales trend chart
+const salesCtx = document.getElementById('salesChart').getContext('2d');
+new Chart(salesCtx, {
+    type: 'line',
+    data: {
+        labels: {{ chart_data|default:"[]"|safe }}.map(d => d.date),
+        datasets: [{
+            label: 'Sales',
+            data: {{ chart_data|default:"[]"|safe }}.map(d => d.sales),
+            borderColor: 'rgb(75, 192, 192)',
+            tension: 0.1
+        }]
+    },
+    options: { responsive: true }
+});
+
+// Category chart
+const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+new Chart(categoryCtx, {
+    type: 'doughnut',
+    data: {
+        labels: {{ category_names|default:"[]"|safe }},
+        datasets: [{
+            data: {{ category_sales|default:"[]"|safe }},
+            backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF']
+        }]
+    },
+    options: { responsive: true }
+});
+</script>
+{% endblock %}
