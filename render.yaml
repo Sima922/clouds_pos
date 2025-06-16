@@ -1,7 +1,7 @@
 services:
   - type: web
     name: cloud-pos-production
-    runtime: python-3.9
+    runtime: python-3.10.14
     buildCommand: |
       pip install -r requirements.txt
       python manage.py collectstatic --noinput
