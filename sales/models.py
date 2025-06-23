@@ -180,12 +180,16 @@ class Order(models.Model):
         Returns a plain-text receipt for this order.
         """
         from .models import OrderItem  # avoid circular import
+        from django.conf import settings
+        symbol = getattr(settings, 'CURRENCY_SYMBOL', '$')
+        
+         
         items = self.items.select_related('product').all()
         lines = []
         for item in items:
             lines.append(
-                f"{item.quantity} × {item.product.name} @ ${item.price:.2f} = ${item.total_price:.2f}"
-            )
+               f"{item.quantity} × {item.product.name} @ {symbol}{item.price:.2f} = {symbol}{item.total_price:.2f}"
+        )
 
         subtotal = sum(item.total_price for item in items)
         discount_amount = subtotal * (self.discount / Decimal('100'))
@@ -202,13 +206,13 @@ class Order(models.Model):
 
         footer = [
             "",
-            f"Subtotal: ${subtotal:.2f}",
-            f"Discount ({self.discount}%): -${discount_amount:.2f}",
-            f"Tax ({self.tax_rate}%): +${tax_amount:.2f}",
+            f"Subtotal: {symbol}{subtotal:.2f}"
+            f"Discount ({self.discount}%): -{symbol}{discount_amount:.2f}",
+            f"Tax ({self.tax_rate}%): +{symbol}{tax_amount:.2f}",
             "-----------------------",
-            f"TOTAL: ${self.total:.2f}",
-            f"Amount Paid: ${self.amount_paid:.2f}",
-            f"Change: ${self.change_given:.2f}",
+            f"TOTAL: {symbol}{self.total:.2f}",
+            f"Amount Paid: {symbol}{self.amount_paid:.2f}",
+            f"Change: {symbol}{self.change_given:.2f}",
             f"Payment Method: {self.get_payment_method_display()}",
             "",
             "Thank you for your purchase!"

@@ -2,6 +2,26 @@ function getCSRFToken() {
   return document.querySelector('[name=csrfmiddlewaretoken]').value;
 }
 
+// Currency formatting function - matches your Django format_currency function
+function formatCurrency(amount) {
+  // Get currency settings from Django template variables (set in HTML)
+  const currencySymbol = window.CURRENCY_SYMBOL || 'P';
+  const useThousandSeparator = window.THOUSAND_SEPARATOR !== false;
+  const decimalPlaces = window.DECIMAL_PLACES || 2;
+  
+  // Format the number with decimal places
+  let formattedAmount = parseFloat(amount).toFixed(decimalPlaces);
+  
+  // Add thousand separator if enabled
+  if (useThousandSeparator) {
+    const parts = formattedAmount.split('.');
+    parts[0] = parseInt(parts[0]).toLocaleString();
+    formattedAmount = parts.join('.');
+  }
+  
+  return formattedAmount;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   let cart = [];
   const defaultTax = 8; // Hardcode tax rate for simplicity
@@ -71,7 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="d-flex justify-content-between align-items-center mb-2">
         <div>
           <span class="fw-bold">${item.name}</span><br>
-          <small>$${item.price.toFixed(2)} x ${item.quantity}</small>
+          <small>${window.CURRENCY_SYMBOL || 'P'}${formatCurrency(item.price)} x ${item.quantity}</small>
         </div>
         <div>
           <button class="btn btn-sm btn-outline-secondary" 
@@ -142,22 +162,34 @@ document.addEventListener('DOMContentLoaded', () => {
     const taxAmount = (subtotal - discountAmount) * (defaultTax / 100);
     const total = subtotal - discountAmount + taxAmount;
 
-    document.getElementById('subtotal').textContent = subtotal.toFixed(2);
-    document.getElementById('discountAmount').textContent = discountAmount.toFixed(2);
-    document.getElementById('taxAmount').textContent = taxAmount.toFixed(2);
-    document.getElementById('totalAmount').textContent = total.toFixed(2);
+    // Use formatCurrency function for proper formatting
+    document.getElementById('subtotal').textContent = formatCurrency(subtotal);
+    document.getElementById('discountAmount').textContent = formatCurrency(discountAmount);
+    document.getElementById('taxAmount').textContent = formatCurrency(taxAmount);
+    document.getElementById('totalAmount').textContent = formatCurrency(total);
     
     calculateChange();
   };
+
+  // Format amount paid input as user types
+  window.formatAmountPaidInput = (input) => {
+    let value = input.value.replace(/,/g, ''); // Remove existing commas
+    if (value && !isNaN(value)) {
+      const formatted = formatCurrency(parseFloat(value));
+      input.value = formatted;
+    }
+  };
   
   window.calculateChange = () => {
-    const total = parseFloat(document.getElementById('totalAmount').textContent);
-    const amountPaid = parseFloat(document.getElementById('amountPaidInput').value) || 0;
+    const totalText = document.getElementById('totalAmount').textContent;
+    // Remove commas and parse the total
+    const total = parseFloat(totalText.replace(/,/g, ''));
+    const amountPaid = parseFloat(document.getElementById('amountPaidInput').value.replace(/,/g, '')) || 0;
     const change = amountPaid - total;
     
     const changeElement = document.getElementById('changeAmount');
     if (changeElement) {
-      changeElement.textContent = change.toFixed(2);
+      changeElement.textContent = formatCurrency(change);
       
       const changeRow = changeElement.closest('.change-row');
       if (changeRow) {
@@ -181,7 +213,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateCartDisplay();
   };
 
-   window.completeOrder = async () => {
+  window.completeOrder = async () => {
     const paymentBtn = document.getElementById('processPaymentBtn');
     const originalBtnText = paymentBtn.innerHTML;
     paymentBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
@@ -198,45 +230,47 @@ document.addEventListener('DOMContentLoaded', () => {
         tax_rate: defaultTax,
         discount: parseFloat(document.getElementById('discountInput').value) || 0,
         payment_method: document.getElementById('paymentMethod').value,
-        amount_paid: parseFloat(document.getElementById('amountPaidInput').value) || 0,
+        amount_paid: parseFloat(document.getElementById('amountPaidInput').value.replace(/,/g, '')) || 0,
       };
 
-      // Create headers with authentication
+      // Create headers for session-based authentication
       const headers = {
         'Content-Type': 'application/json',
         'X-CSRFToken': getCSRFToken()
       };
-      
-      // Add JWT token if available
-      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
 
-      // Create order
+      console.log('Sending order data:', orderData);
+
+      // Create order using session authentication
       const createResponse = await fetch(`${API_BASE_URL}orders/`, {
         method: 'POST',
         headers: headers,
-        credentials: 'include',  // Crucial for session-based auth
+        credentials: 'same-origin',  // Use same-origin for session auth
         body: JSON.stringify(orderData)
       });
 
+      console.log('Create order response status:', createResponse.status);
+
       if (!createResponse.ok) {
-        const errorText = await createResponse.text();
+        const errorData = await createResponse.json().catch(() => null);
+        const errorText = errorData ? JSON.stringify(errorData) : await createResponse.text();
+        console.error('Order creation failed:', errorText);
         throw new Error(`Order creation failed: ${createResponse.status} - ${errorText}`);
       }
 
       const order = await createResponse.json();
+      console.log('Order created successfully:', order);
       
       // Generate receipt - use the same headers
       const receiptUrl = `${API_BASE_URL}orders/${order.id}/receipt/?format=html`;
       const receiptResponse = await fetch(receiptUrl, {
         headers: headers,
-        credentials: 'include'  // Crucial for session-based auth
+        credentials: 'same-origin'  // Use same-origin for session auth
       });
       
       if (!receiptResponse.ok) {
         const errorText = await receiptResponse.text();
+        console.error('Receipt generation failed:', errorText);
         throw new Error(`Receipt generation failed: ${receiptResponse.status} - ${errorText}`);
       }
       
@@ -246,10 +280,14 @@ document.addEventListener('DOMContentLoaded', () => {
       // Show receipt modal
       new bootstrap.Modal(document.getElementById('receiptModal')).show();
       
-      // Reset cart
+      // Reset cart and form
       cart = [];
       updateCartDisplay();
       document.getElementById('amountPaidInput').value = '';
+      document.getElementById('discountInput').value = '';
+      
+      // Reload product info to get updated stock levels
+      await reloadProductInfo();
 
     } catch (error) {
       console.error('Order processing error:', error);
@@ -259,7 +297,6 @@ document.addEventListener('DOMContentLoaded', () => {
       paymentBtn.disabled = cart.length === 0;
     }
   };
-
   
   async function reloadProductInfo() {
     try {
@@ -286,8 +323,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           }
         });
+        
+        console.log('Product info reloaded successfully');
       } else {
-        console.error('Failed to reload product data');
+        console.error('Failed to reload product data:', response.status);
         showAlert('Failed to update product info. Please refresh the page.', 'warning');
       }
     } catch (error) {
@@ -326,13 +365,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const processPaymentBtn = document.getElementById('processPaymentBtn');
   if (processPaymentBtn) {
     let isProcessing = false;
-    let processingTimeout = null;
     
     processPaymentBtn.addEventListener('click', async (e) => {
       e.preventDefault();
       e.stopPropagation();
       
-      // Strong double-click protection
       if (isProcessing || processPaymentBtn.disabled) {
         console.log('Order already processing or button disabled, ignoring click');
         return;
@@ -340,14 +377,7 @@ document.addEventListener('DOMContentLoaded', () => {
       
       console.log('Payment button clicked - starting order process');
       
-      // Immediately set processing state and disable button
       isProcessing = true;
-      processPaymentBtn.disabled = true;
-      
-      // Clear any existing timeout
-      if (processingTimeout) {
-        clearTimeout(processingTimeout);
-      }
       
       try {
         await window.completeOrder();
@@ -355,65 +385,55 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('Error in payment button handler:', error);
         showAlert(`Order failed: ${error.message}`, 'danger');
       } finally {
-        // Reset processing state after a delay
-        processingTimeout = setTimeout(() => {
+        // Reset processing flag after a short delay
+        setTimeout(() => {
           isProcessing = false;
-          // Only re-enable if cart has items and no error state
-          if (cart && cart.length > 0 && !processPaymentBtn.innerHTML.includes('Processing')) {
-            processPaymentBtn.disabled = false;
-          }
-          console.log('Payment button protection reset, cart length:', cart ? cart.length : 0);
-        }, 3000); // Increased to 3 seconds
+          console.log('Payment button protection reset');
+        }, 2000);
       }
     });
   }
 
   // Initialize other event listeners
+  // Initialize other event listeners
   if (document.getElementById('amountPaidInput')) {
-    document.getElementById('amountPaidInput').addEventListener('input', calculateChange);
-  }
-
-  updateCartDisplay();
-  document.getElementById('discountInput').addEventListener('input', updateTotals);
-});
-
-window.testReceiptUrl = async (orderId) => {
-  console.log('=== TESTING RECEIPT URL ===');
-  const testUrls = [
-    `/api/orders/${orderId}/receipt/?format=html`,
-    `/api/orders/${orderId}/receipt/`
-  ];
-  
-  for (const url of testUrls) {
-    console.log(`Testing URL: ${url}`);
-    try {
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'X-CSRFToken': getCSRFToken(),
-          'Accept': 'text/html, */*'
-        },
-        credentials: 'same-origin'
-      });
+    let isFormatting = false;
+    
+    document.getElementById('amountPaidInput').addEventListener('input', (e) => {
+      if (isFormatting) return; // Prevent infinite loop
       
-      console.log(`  Status: ${response.status}`);
-      console.log(`  Headers:`, [...response.headers.entries()]);
+      const input = e.target;
+      const cursorPosition = input.selectionStart;
+      const oldValue = input.value;
+      const oldLength = oldValue.length;
       
-      if (response.ok) {
-        const content = await response.text();
-        console.log(`  Content length: ${content.length}`);
-        console.log(`  Content preview: ${content.substring(0, 200)}`);
-        console.log(`✅ URL ${url} works!`);
-        return url;
-      } else {
-        const errorText = await response.text();
-        console.log(`  Error: ${errorText}`);
+      // Get raw value without commas
+      let value = input.value.replace(/,/g, '');
+      
+      // Only format if it's a valid number
+      if (value && !isNaN(value) && value !== '') {
+        isFormatting = true;
+        
+        const formatted = formatCurrency(parseFloat(value));
+        input.value = formatted;
+        
+        // Restore cursor position accounting for new commas
+        const newLength = formatted.length;
+        const lengthDiff = newLength - oldLength;
+        const newCursorPosition = Math.max(0, cursorPosition + lengthDiff);
+        input.setSelectionRange(newCursorPosition, newCursorPosition);
+        
+        isFormatting = false;
       }
-    } catch (error) {
-      console.log(`  Exception: ${error.message}`);
-    }
+      
+      calculateChange();
+    });
   }
-  
-  console.log('❌ No working URLs found');
-  return null;
-};
+
+  if (document.getElementById('discountInput')) {
+    document.getElementById('discountInput').addEventListener('input', updateTotals);
+  }
+
+  // Initialize display
+  updateCartDisplay();
+});

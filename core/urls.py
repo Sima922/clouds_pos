@@ -23,6 +23,7 @@ urlpatterns = [
     path('products/', include('products.urls')),
     path('reports/', include('reports.urls')),
     path('subscriptions/', include('subscriptions.urls')),
+    
 
     # API
     path('api/auth/', include('accounts.api.urls')),

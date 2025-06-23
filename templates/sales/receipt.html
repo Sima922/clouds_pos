@@ -109,16 +109,16 @@
         </div>
         
         <div class="items">
-            {% for item in items %}
+            {% for item in formatted_items %}
             <div class="item">
                 <div>
-                    <div class="item-name">{{ item.product.name }}</div>
+                    <div class="item-name">{{ item.name }}</div>
                     <div class="item-details">
-                        ${{ item.price|floatformat:2 }} x {{ item.quantity }}
+                        {{ item.price }} x {{ item.quantity }}
                     </div>
                 </div>
                 <div class="item-price">
-                    ${{ item.total_price|floatformat:2 }}
+                    {{ item.total_price }}
                 </div>
             </div>
             {% endfor %}
@@ -127,30 +127,30 @@
         <div class="totals">
             <div class="total-line">
                 <span>Subtotal:</span>
-                <span>${{ subtotal|floatformat:2 }}</span>
+                <span>{{ subtotal }}</span>
             </div>
-            {% if discount_amount > 0 %}
+            {% if order.discount > 0 %}
             <div class="total-line">
                 <span>Discount ({{ order.discount }}%):</span>
-                <span>-${{ discount_amount|floatformat:2 }}</span>
+                <span>-{{ discount_amount }}</span>
             </div>
             {% endif %}
             <div class="total-line">
                 <span>Tax ({{ order.tax_rate }}%):</span>
-                <span>${{ tax_amount|floatformat:2 }}</span>
+                <span>{{ tax_amount }}</span>
             </div>
             <div class="total-line grand-total">
                 <span>TOTAL:</span>
-                <span>${{ order.total|floatformat:2 }}</span>
+                <span>{{ total }}</span>
             </div>
-            {% if order.amount_paid %}
+            {% if amount_paid %}
             <div class="total-line">
                 <span>Amount Paid:</span>
-                <span>${{ order.amount_paid|floatformat:2 }}</span>
+                <span>{{ amount_paid }}</span>
             </div>
             <div class="total-line">
                 <span>Change:</span>
-                <span>${{ order.change_given|floatformat:2 }}</span>
+                <span>{{ change_given }}</span>
             </div>
             {% endif %}
         </div>

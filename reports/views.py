@@ -1,4 +1,3 @@
-# reports/views.py
 import logging
 from django.views.generic import TemplateView
 from django.http import HttpResponse, JsonResponse
@@ -8,6 +7,7 @@ from datetime import timedelta, datetime
 from django.core.exceptions import FieldError
 from django.contrib.auth.mixins import LoginRequiredMixin
 from io import BytesIO
+from core.utils import currency
 
 # For exports
 import csv
@@ -46,6 +46,11 @@ class ReportsDashboardView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         user = self.request.user
         sub = get_user_subscription(user)
+
+        # Add currency settings to context
+        from django.conf import settings
+        context['CURRENCY_SYMBOL'] = getattr(settings, 'CURRENCY_SYMBOL', 'P')
+        context['CURRENCY'] = getattr(settings, 'CURRENCY', 'BWP')
 
         # Parse date range / period
         start_date_str = self.request.GET.get('start_date')
@@ -93,11 +98,7 @@ class ReportsDashboardView(LoginRequiredMixin, TemplateView):
         completed_orders = Order.objects.filter(
             status='completed',
             created_at__date__range=[start_date, end_date],
-            # If Order has subscription FK:
             subscription=sub
-            # Otherwise: filter(user__subscription=sub)
-            # Uncomment next line if no subscription FK:
-            # user__subscription=sub
         )
 
         # Sales metrics
@@ -130,7 +131,6 @@ class ReportsDashboardView(LoginRequiredMixin, TemplateView):
                         status='completed',
                         created_at__date=day,
                         subscription=sub
-                        # or user__subscription=sub
                     )
                     day_total = day_qs.aggregate(total=Sum('total'))['total'] or 0
                     chart_data.append({
@@ -279,7 +279,7 @@ class SalesReportView(LoginRequiredMixin, TemplateView):
         writer = csv.writer(response)
         writer.writerow(['Sales Report Summary'])
         writer.writerow(['Period', data['period']])
-        writer.writerow(['Total Sales', f"${data['total_sales']:.2f}"])
+        writer.writerow(['Total Sales', currency(data['total_sales'])])  # Use currency formatting
         writer.writerow(['Total Orders', data['total_orders']])
         writer.writerow(['Total Items', data['total_items']])
         writer.writerow([])
@@ -288,7 +288,7 @@ class SalesReportView(LoginRequiredMixin, TemplateView):
             writer.writerow([
                 order['order_id'],
                 order['date'],
-                f"${order['total']:.2f}",
+                currency(order['total']),  # Use currency formatting
                 order['items_count'],
                 order['customer']
             ])
@@ -308,11 +308,11 @@ class SalesReportView(LoginRequiredMixin, TemplateView):
         # Summary
         p.setFont("Helvetica", 12)
         y = height - 100
-        p.drawString(50, y, f"Total Sales: ${data['total_sales']:,.2f}")
+        p.drawString(50, y, f"Total Sales: {currency(data['total_sales'])}")  # Use currency formatting
         p.drawString(50, y - 20, f"Total Orders: {data['total_orders']:,}")
         p.drawString(50, y - 40, f"Total Items Sold: {data['total_items']:,}")
         avg_val = data['total_sales'] / max(data['total_orders'], 1)
-        p.drawString(50, y - 60, f"Average Order Value: ${avg_val:,.2f}")
+        p.drawString(50, y - 60, f"Average Order Value: {currency(avg_val)}")  # Use currency formatting
 
         # Table header
         y -= 100
@@ -340,7 +340,7 @@ class SalesReportView(LoginRequiredMixin, TemplateView):
                 y -= 15
             p.drawString(50, y, str(order['order_id']))
             p.drawString(120, y, order['date'])
-            p.drawString(200, y, f"${order['total']:,.2f}")
+            p.drawString(200, y, currency(order['total']))  # Use currency formatting
             p.drawString(280, y, str(order['items_count']))
             p.drawString(340, y, order['customer'])
 
@@ -361,7 +361,7 @@ class SalesReportView(LoginRequiredMixin, TemplateView):
         ws['A2'] = 'Period'
         ws['B2'] = data['period']
         ws['A3'] = 'Total Sales'
-        ws['B3'] = f"${data['total_sales']:.2f}"
+        ws['B3'] = currency(data['total_sales'])  # Use currency formatting
         ws['A4'] = 'Total Orders'
         ws['B4'] = data['total_orders']
         ws['A5'] = 'Total Items'
@@ -374,7 +374,7 @@ class SalesReportView(LoginRequiredMixin, TemplateView):
             ws.append([
                 order['order_id'],
                 order['date'],
-                f"${order['total']:.2f}",
+                currency(order['total']),  # Use currency formatting
                 order['items_count'],
                 order['customer']
             ])
@@ -385,5 +385,3 @@ class SalesReportView(LoginRequiredMixin, TemplateView):
         response['Content-Disposition'] = 'attachment; filename="sales_report.xlsx"'
         wb.save(response)
         return response
-
-    

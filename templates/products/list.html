@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load humanize %}
 
 {% block content %}
 <div class="container mt-4">
@@ -10,7 +11,7 @@
         Low stock alert for: 
         {% for product in low_stock %}
         <a href="{% url 'product-update' product.id %}" class="alert-link">
-            {{ product.name }} ({{ product.stock }} left)
+            {{ product.name }} ({{ product.stock|intcomma }} left)
         </a>
         {% if not forloop.last %}, {% endif %}
         {% endfor %}
@@ -72,10 +73,10 @@
                         <tr>
                             <td>{{ product.name }}</td>
                             <td>{{ product.category }}</td>
-                            <td>${{ product.price }}</td>
+                            <td>{{ CURRENCY_SYMBOL }}{{ product.price|floatformat:2|intcomma }}</td>
                             <td>
                                 <span class="{% if product.needs_restock %}text-danger{% endif %}">
-                                    {{ product.stock }}
+                                    {{ product.stock|intcomma }}
                                 </span>
                             </td>
                             <td>

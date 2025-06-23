@@ -1,4 +1,3 @@
-# templates/reports/dashboard.html
 {% extends "base.html" %}
 {% load humanize %}
 
@@ -47,7 +46,8 @@
             <div class="card bg-primary text-white">
                 <div class="card-body">
                     <h5>Total Sales</h5>
-                    <h4>${{ total_sales|floatformat:2|intcomma }}</h4>
+                    <h4>{{ CURRENCY_SYMBOL }}{{ total_sales|floatformat:2|intcomma }}</h4>
+                    <small>{{ CURRENCY }} ({{ CURRENCY_SYMBOL }})</small>
                 </div>
             </div>
         </div>
@@ -63,7 +63,8 @@
             <div class="card bg-info text-white">
                 <div class="card-body">
                     <h5>Avg Order Value</h5>
-                    <h4>${{ avg_order_value|floatformat:2|intcomma }}</h4>
+                    <h4>{{ CURRENCY_SYMBOL }}{{ avg_order_value|floatformat:2|intcomma }}</h4>
+                    <small>{{ CURRENCY }} ({{ CURRENCY_SYMBOL }})</small>
                 </div>
             </div>
         </div>
@@ -101,38 +102,76 @@
         </div>
     </div>
 
-    
-
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-// Sales trend chart
-const salesCtx = document.getElementById('salesChart').getContext('2d');
-new Chart(salesCtx, {
-    type: 'line',
-    data: {
-        labels: {{ chart_data|default:"[]"|safe }}.map(d => d.date),
-        datasets: [{
-            label: 'Sales',
-            data: {{ chart_data|default:"[]"|safe }}.map(d => d.sales),
-            borderColor: 'rgb(75, 192, 192)',
-            tension: 0.1
-        }]
-    },
-    options: { responsive: true }
-});
+    // Sales trend chart
+    const salesCtx = document.getElementById('salesChart').getContext('2d');
+    new Chart(salesCtx, {
+        type: 'line',
+        data: {
+            labels: {{ chart_data|default:"[]"|safe }}.map(d => d.date),
+            datasets: [{
+                label: 'Sales',
+                data: {{ chart_data|default:"[]"|safe }}.map(d => d.sales),
+                borderColor: 'rgb(75, 192, 192)',
+                tension: 0.1
+            }]
+        },
+        options: { 
+            responsive: true,
+            scales: {
+                y: {
+                    ticks: {
+                        callback: function(value, index, values) {
+                            return '{{ CURRENCY_SYMBOL }}' + value.toLocaleString('en-US', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                            });
+                        }
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return 'Sales: {{ CURRENCY_SYMBOL }}' + context.parsed.y.toLocaleString('en-US', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    });
 
-// Category chart
-const categoryCtx = document.getElementById('categoryChart').getContext('2d');
-new Chart(categoryCtx, {
-    type: 'doughnut',
-    data: {
-        labels: {{ category_names|default:"[]"|safe }},
-        datasets: [{
-            data: {{ category_sales|default:"[]"|safe }},
-            backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF']
-        }]
-    },
-    options: { responsive: true }
-});
+    // Category chart
+    const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+    new Chart(categoryCtx, {
+        type: 'doughnut',
+        data: {
+            labels: {{ category_names|default:"[]"|safe }},
+            datasets: [{
+                data: {{ category_sales|default:"[]"|safe }},
+                backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF']
+            }]
+        },
+        options: { 
+            responsive: true,
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.label + ': {{ CURRENCY_SYMBOL }}' + context.parsed.toLocaleString('en-US', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    });
 </script>
 {% endblock %}

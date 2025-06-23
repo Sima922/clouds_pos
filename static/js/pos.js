@@ -2,6 +2,60 @@ function getCSRFToken() {
   return document.querySelector('[name=csrfmiddlewaretoken]').value;
 }
 
+// Currency formatting function - matches your Django format_currency function
+function formatCurrency(amount) {
+  // Get currency settings from Django template variables (set in HTML)
+  const currencySymbol = window.CURRENCY_SYMBOL || 'P';
+  const useThousandSeparator = window.THOUSAND_SEPARATOR !== false;
+  const decimalPlaces = window.DECIMAL_PLACES || 2;
+  
+  // Format the number with decimal places
+  let formattedAmount = parseFloat(amount).toFixed(decimalPlaces);
+  
+  // Add thousand separator if enabled
+  if (useThousandSeparator) {
+    const parts = formattedAmount.split('.');
+    parts[0] = parseInt(parts[0]).toLocaleString();
+    formattedAmount = parts.join('.');
+  }
+  
+  return formattedAmount;
+}
+
+// Simple formatting function for input fields (no decimal places forced)
+function formatInputCurrency(amount) {
+  const useThousandSeparator = window.THOUSAND_SEPARATOR !== false;
+  
+  if (!useThousandSeparator) {
+    return amount.toString();
+  }
+  
+  // Split by decimal point
+  const parts = amount.toString().split('.');
+  
+  // Format the integer part with thousand separators
+  parts[0] = parseInt(parts[0]).toLocaleString();
+  
+  // Rejoin with decimal part if it exists
+  return parts.join('.');
+}
+
+function setCursorPosition(input, position) {
+  input.setSelectionRange(position, position);
+}
+
+// Function to format all product prices on the page
+function formatProductPrices() {
+  document.querySelectorAll('.product-card').forEach(card => {
+    const priceElement = card.querySelector('.card-body span:first-child');
+    if (priceElement) {
+      const price = parseFloat(card.dataset.price);
+      const currencySymbol = window.CURRENCY_SYMBOL || 'P';
+      priceElement.textContent = `${currencySymbol}${formatCurrency(price)}`;
+    }
+  });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   let cart = [];
   const defaultTax = 8; // Hardcode tax rate for simplicity
@@ -9,6 +63,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Unified API configuration
   const API_BASE_URL = '/api/sales/';
   console.log('Using API base URL:', API_BASE_URL);
+
+  // Format product prices on page load
+  formatProductPrices();
 
   document.getElementById('productSearch').addEventListener('input', (e) => {
     const searchTerm = e.target.value.toLowerCase();
@@ -67,11 +124,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function updateCartDisplay() {
     const cartDiv = document.getElementById('cartItems');
+    const currencySymbol = window.CURRENCY_SYMBOL || 'P';
+    
     cartDiv.innerHTML = cart.map((item, index) => `
       <div class="d-flex justify-content-between align-items-center mb-2">
         <div>
           <span class="fw-bold">${item.name}</span><br>
-          <small>$${item.price.toFixed(2)} x ${item.quantity}</small>
+          <small>${currencySymbol}${formatCurrency(item.price)} x ${item.quantity}</small>
         </div>
         <div>
           <button class="btn btn-sm btn-outline-secondary" 
@@ -142,22 +201,34 @@ document.addEventListener('DOMContentLoaded', () => {
     const taxAmount = (subtotal - discountAmount) * (defaultTax / 100);
     const total = subtotal - discountAmount + taxAmount;
 
-    document.getElementById('subtotal').textContent = subtotal.toFixed(2);
-    document.getElementById('discountAmount').textContent = discountAmount.toFixed(2);
-    document.getElementById('taxAmount').textContent = taxAmount.toFixed(2);
-    document.getElementById('totalAmount').textContent = total.toFixed(2);
+    // Use formatCurrency function for proper formatting
+    document.getElementById('subtotal').textContent = formatCurrency(subtotal);
+    document.getElementById('discountAmount').textContent = formatCurrency(discountAmount);
+    document.getElementById('taxAmount').textContent = formatCurrency(taxAmount);
+    document.getElementById('totalAmount').textContent = formatCurrency(total);
     
     calculateChange();
   };
+
+  // Format amount paid input as user types
+  window.formatAmountPaidInput = (input) => {
+    let value = input.value.replace(/,/g, ''); // Remove existing commas
+    if (value && !isNaN(value)) {
+      const formatted = formatCurrency(parseFloat(value));
+      input.value = formatted;
+    }
+  };
   
   window.calculateChange = () => {
-    const total = parseFloat(document.getElementById('totalAmount').textContent);
-    const amountPaid = parseFloat(document.getElementById('amountPaidInput').value) || 0;
+    const totalText = document.getElementById('totalAmount').textContent;
+    // Remove commas and parse the total
+    const total = parseFloat(totalText.replace(/,/g, ''));
+    const amountPaid = parseFloat(document.getElementById('amountPaidInput').value.replace(/,/g, '')) || 0;
     const change = amountPaid - total;
     
     const changeElement = document.getElementById('changeAmount');
     if (changeElement) {
-      changeElement.textContent = change.toFixed(2);
+      changeElement.textContent = formatCurrency(change);
       
       const changeRow = changeElement.closest('.change-row');
       if (changeRow) {
@@ -198,7 +269,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tax_rate: defaultTax,
         discount: parseFloat(document.getElementById('discountInput').value) || 0,
         payment_method: document.getElementById('paymentMethod').value,
-        amount_paid: parseFloat(document.getElementById('amountPaidInput').value) || 0,
+        amount_paid: parseFloat(document.getElementById('amountPaidInput').value.replace(/,/g, '')) || 0,
       };
 
       // Create headers for session-based authentication
@@ -284,10 +355,20 @@ document.addEventListener('DOMContentLoaded', () => {
           const card = document.querySelector(`.product-card[data-id="${product.id}"]`);
           if (card) {
             card.dataset.stock = product.stock;
+            card.dataset.price = product.price; // Update price data as well
+            
+            // Update stock display
             const stockElement = card.querySelector('.badge');
             if (stockElement) {
               stockElement.textContent = `Stock: ${product.stock}`;
               stockElement.className = product.stock > 0 ? 'badge bg-success' : 'badge bg-danger';
+            }
+            
+            // Update price display with proper formatting
+            const priceElement = card.querySelector('.card-body span:first-child');
+            if (priceElement) {
+              const currencySymbol = window.CURRENCY_SYMBOL || 'P';
+              priceElement.textContent = `${currencySymbol}${formatCurrency(product.price)}`;
             }
           }
         });
@@ -362,9 +443,63 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Initialize other event listeners
+  // Initialize other event listeners - FIXED AMOUNT PAID INPUT
   if (document.getElementById('amountPaidInput')) {
-    document.getElementById('amountPaidInput').addEventListener('input', calculateChange);
+    const amountInput = document.getElementById('amountPaidInput');
+    let isFormatting = false; // Flag to prevent recursive formatting
+
+    amountInput.addEventListener('input', (e) => {
+      if (isFormatting) return; // Prevent recursive calls
+      
+      const input = e.target;
+      const cursorPosition = input.selectionStart;
+      let value = input.value.replace(/,/g, ''); // Remove commas
+      
+      // Allow only numbers and one decimal point
+      if (!/^\d*\.?\d*$/.test(value)) {
+        value = value.slice(0, -1);
+      }
+      
+      // Only format if the value has more than 3 digits before decimal OR user finished typing
+      // This prevents premature formatting of single digits
+      if (value && !isNaN(value)) {
+        const parts = value.split('.');
+        const integerPart = parts[0];
+        
+        // Only apply thousand separators if integer part has more than 3 digits
+        // OR if there's a decimal part (user is done with integer part)
+        if (integerPart.length > 3 || parts.length > 1) {
+          isFormatting = true;
+          const formatted = formatInputCurrency(parseFloat(value));
+          input.value = formatted;
+          
+          // Restore cursor position (approximate)
+          const newCursorPos = cursorPosition + (formatted.length - value.length);
+          setTimeout(() => {
+            input.setSelectionRange(newCursorPos, newCursorPos);
+            isFormatting = false;
+          }, 0);
+        } else {
+          // For values with 3 or fewer digits, just keep as is
+          input.value = value;
+        }
+      }
+      
+      calculateChange();
+    });
+
+    // Only format fully on blur (when user leaves the field)
+    amountInput.addEventListener('blur', (e) => {
+      const input = e.target;
+      let value = input.value.replace(/,/g, '');
+      
+      if (value && !isNaN(value)) {
+        const num = parseFloat(value);
+        input.value = formatInputCurrency(num);
+      }
+      
+      calculateChange();
+    });
   }
 
   if (document.getElementById('discountInput')) {

@@ -9,3 +9,4 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(
             f'Successfully generated daily report for {report.report_date}'
         ))
+        

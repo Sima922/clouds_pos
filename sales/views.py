@@ -14,29 +14,15 @@ from django.utils.html import escape
 from rest_framework.authentication import SessionAuthentication
 from decimal import Decimal
 from django.core.exceptions import FieldError
+from django.conf import settings
 
 from .models import Order, OrderItem
 from .serializers import OrderSerializer
 from products.models import Product
 from customers.models import Customer
+from core.utils import currency
 
 logger = logging.getLogger(__name__)
-
-# sales/views.py
-
-from rest_framework import status
-from rest_framework.response import Response
-from rest_framework import generics
-from rest_framework.permissions import IsAuthenticated
-from django.db import transaction
-import logging
-
-from .models import Order
-from .serializers import OrderSerializer
-
-logger = logging.getLogger(__name__)
-
-
 
 def get_user_subscription(user):
     """
@@ -47,7 +33,6 @@ def get_user_subscription(user):
     if sub:
         return sub
     return getattr(user, 'owned_subscription', None)
-
 
 # ──────────────────────────────────────────────────────────────────────────────
 # REST API: Orders
@@ -106,23 +91,25 @@ class POSView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         sub = get_user_subscription(self.request.user)
+        
+        # Add currency settings to context
+        context['CURRENCY_SYMBOL'] = getattr(settings, 'CURRENCY_SYMBOL', 'P')
+        context['CURRENCY'] = getattr(settings, 'CURRENCY', 'BWP')
 
         if sub:
-            # products scoped to subscription
+            # Products scoped to subscription
             context['products'] = Product.objects.filter(
                 subscription=sub,
                 is_active=True
             ).order_by('name')
 
-            # customers: only filter by subscription if that field actually exists
+            # Customers: only filter by subscription if field exists
             try:
                 context['customers'] = Customer.objects.filter(
-                    subscription=sub,
-                    is_active=True
+                    subscription=sub
                 ).order_by('name')
             except (FieldError, AttributeError):
                 context['customers'] = Customer.objects.all()
-
         else:
             context['products'] = Product.objects.none()
             context['customers'] = Customer.objects.none()
@@ -138,6 +125,10 @@ class OrdersView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         sub = get_user_subscription(self.request.user)
+        
+        # Add currency settings to context
+        context['CURRENCY_SYMBOL'] = getattr(settings, 'CURRENCY_SYMBOL', 'P')
+        context['CURRENCY'] = getattr(settings, 'CURRENCY', 'BWP')
 
         if sub:
             context['orders'] = Order.objects.filter(
@@ -148,6 +139,34 @@ class OrdersView(LoginRequiredMixin, TemplateView):
 
         return context
 
+
+def currency_settings(request):                                                                                                         
+    """
+    Add currency settings to template context with safe defaults.
+    """
+    return {
+        'CURRENCY_SYMBOL': getattr(settings, 'CURRENCY_SYMBOL', 'P'),
+        'CURRENCY': getattr(settings, 'CURRENCY', 'BWP'),
+        'THOUSAND_SEPARATOR': getattr(settings, 'THOUSAND_SEPARATOR', True),
+        'DECIMAL_PLACES': getattr(settings, 'DECIMAL_PLACES', 2),
+    }
+
+def format_currency(amount):
+    """Format currency with proper symbol, thousand separator and decimal places."""
+    currency_symbol = getattr(settings, 'CURRENCY_SYMBOL', 'P')
+    use_thousand_separator = getattr(settings, 'THOUSAND_SEPARATOR', True)
+    decimal_places = getattr(settings, 'DECIMAL_PLACES', 2)
+    
+    # Format the number with decimal places
+    formatted_amount = f"{float(amount):.{decimal_places}f}"
+    
+    # Add thousand separator if enabled
+    if use_thousand_separator:
+        parts = formatted_amount.split('.')
+        parts[0] = f"{int(parts[0]):,}"
+        formatted_amount = '.'.join(parts)
+    
+    return f"{currency_symbol}{formatted_amount}"
 
 @login_required
 def generate_receipt(request, order_id):
@@ -187,16 +206,32 @@ def generate_receipt(request, order_id):
         else:
             business_name = "CloudPOS"
 
+        # Format all currency values properly
         context = {
             'business_name': business_name,
             'order': order_obj,
             'items': items_qs,
-            'subtotal': subtotal,
-            'discount_amount': discount_amount,
-            'tax_amount': tax_amount,
+            'subtotal': format_currency(subtotal),
+            'discount_amount': format_currency(discount_amount),
+            'tax_amount': format_currency(tax_amount),
+            'total': format_currency(order_obj.total),
+            'amount_paid': format_currency(order_obj.amount_paid) if order_obj.amount_paid else None,
+            'change_given': format_currency(order_obj.change_given) if order_obj.change_given else None,
             'formatted_date': order_obj.created_at.strftime('%Y-%m-%d %H:%M'),
             'customer_name': getattr(order_obj.customer, 'name', 'Walk-in'),
             'cashier_name': request.user.get_full_name() or request.user.email,
+            'currency_symbol': getattr(settings, 'CURRENCY_SYMBOL', 'P'),
+            # Format individual item prices for template
+            'formatted_items': [
+                {
+                    'product': item.product,
+                    'quantity': item.quantity,
+                    'price': format_currency(item.price),
+                    'total_price': format_currency(item.total_price),
+                    'name': item.product.name
+                }
+                for item in items_qs
+            ]
         }
 
         # 5) Render HTML if requested
@@ -253,4 +288,4 @@ def debug_orders(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def simple_receipt_test(request, order_id):
-    return JsonResponse({'message': f'Got order_id: {order_id}', 'user': str(request.user)})    
+    return JsonResponse({'message': f'Got order_id: {order_id}', 'user': str(request.user)})

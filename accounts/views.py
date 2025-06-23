@@ -6,6 +6,7 @@ from django.shortcuts import redirect
 from django.contrib.auth import login, authenticate
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib import messages
+from django.contrib.auth.mixins import PermissionRequiredMixin
 
 from .forms import LoginForm, RegistrationForm
 from .models import ClientSubscription, User

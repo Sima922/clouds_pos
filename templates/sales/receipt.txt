@@ -21,3 +21,5 @@ Change: ${{ order.change_given|floatformat:2 }}
 Payment Method: {{ order.get_payment_method_display }}
 
 Thank you for your purchase!
+
+

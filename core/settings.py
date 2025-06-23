@@ -18,7 +18,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Quick-start development settings - unsuitable for production
 SECRET_KEY = config('SECRET_KEY')
-DEBUG = config('DEBUG', default=False, cast=bool)
+DEBUG = True
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost').split(',')
 # Application definition
 
@@ -62,7 +62,7 @@ ROOT_URLCONF = "core.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / 'templates'],  # Add this line
+        "DIRS": [BASE_DIR / 'templates'],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -70,10 +70,12 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "core.context_processors.currency_settings",  # ADD THIS
             ],
         },
     },
 ]
+
 
 WSGI_APPLICATION = "core.wsgi.application"
 
@@ -186,6 +188,12 @@ DEFAULT_TAX_RATE = config('DEFAULT_TAX_RATE', default=0.08, cast=float)
 LOW_STOCK_THRESHOLD = config('LOW_STOCK_THRESHOLD', default=5, cast=int)
 
 SUBSCRIPTION_REQUIRED = config('SUBSCRIPTION_REQUIRED', default=False, cast=bool)
+
+# Add to the bottom
+CURRENCY = "BWP"
+CURRENCY_SYMBOL = "P"
+DECIMAL_PLACES = 2
+THOUSAND_SEPARATOR = True
 
 
 

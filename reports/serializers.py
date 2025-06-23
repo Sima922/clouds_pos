@@ -41,3 +41,4 @@ class SalesSummarySerializer(serializers.Serializer):
     top_products = serializers.ListField(child=serializers.DictField())
     sales_by_category = serializers.ListField(child=serializers.DictField())
     export_formats = serializers.ListField(child=serializers.CharField())
+    
