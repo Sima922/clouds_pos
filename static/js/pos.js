@@ -446,54 +446,59 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initialize other event listeners - FIXED AMOUNT PAID INPUT
   if (document.getElementById('amountPaidInput')) {
     const amountInput = document.getElementById('amountPaidInput');
-    let isFormatting = false; // Flag to prevent recursive formatting
+    let isFormatting = false;
 
     amountInput.addEventListener('input', (e) => {
-      if (isFormatting) return; // Prevent recursive calls
+      if (isFormatting) return;
       
       const input = e.target;
       const cursorPosition = input.selectionStart;
-      let value = input.value.replace(/,/g, ''); // Remove commas
+      let value = input.value.replace(/,/g, ''); // Remove existing commas
       
       // Allow only numbers and one decimal point
       if (!/^\d*\.?\d*$/.test(value)) {
         value = value.slice(0, -1);
       }
       
-      // Only format if the value has more than 3 digits before decimal OR user finished typing
-      // This prevents premature formatting of single digits
-      if (value && !isNaN(value)) {
+      // Apply thousand separators in real-time if there's a valid number
+      if (value && !isNaN(value) && value.trim() !== '') {
+        isFormatting = true;
+        
+        // Split by decimal point
         const parts = value.split('.');
         const integerPart = parts[0];
         
-        // Only apply thousand separators if integer part has more than 3 digits
-        // OR if there's a decimal part (user is done with integer part)
-        if (integerPart.length > 3 || parts.length > 1) {
-          isFormatting = true;
-          const formatted = formatInputCurrency(parseFloat(value));
-          input.value = formatted;
+        // Add thousand separators to integer part if it has 4+ digits
+        if (integerPart.length >= 4) {
+          const formattedInteger = parseInt(integerPart).toLocaleString();
+          const formattedValue = parts.length > 1 ? `${formattedInteger}.${parts[1]}` : formattedInteger;
           
-          // Restore cursor position (approximate)
-          const newCursorPos = cursorPosition + (formatted.length - value.length);
+          input.value = formattedValue;
+          
+          // Adjust cursor position
+          const addedCommas = formattedValue.length - value.length;
+          const newCursorPos = Math.max(0, cursorPosition + addedCommas);
           setTimeout(() => {
             input.setSelectionRange(newCursorPos, newCursorPos);
             isFormatting = false;
           }, 0);
         } else {
-          // For values with 3 or fewer digits, just keep as is
           input.value = value;
+          isFormatting = false;
         }
+      } else {
+        input.value = value;
       }
       
       calculateChange();
     });
 
-    // Only format fully on blur (when user leaves the field)
+    // Clean up formatting on blur if needed
     amountInput.addEventListener('blur', (e) => {
       const input = e.target;
       let value = input.value.replace(/,/g, '');
       
-      if (value && !isNaN(value)) {
+      if (value && !isNaN(value) && value.trim() !== '') {
         const num = parseFloat(value);
         input.value = formatInputCurrency(num);
       }
