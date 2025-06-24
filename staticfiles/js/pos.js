@@ -22,6 +22,40 @@ function formatCurrency(amount) {
   return formattedAmount;
 }
 
+// Simple formatting function for input fields (no decimal places forced)
+function formatInputCurrency(amount) {
+  const useThousandSeparator = window.THOUSAND_SEPARATOR !== false;
+  
+  if (!useThousandSeparator) {
+    return amount.toString();
+  }
+  
+  // Split by decimal point
+  const parts = amount.toString().split('.');
+  
+  // Format the integer part with thousand separators
+  parts[0] = parseInt(parts[0]).toLocaleString();
+  
+  // Rejoin with decimal part if it exists
+  return parts.join('.');
+}
+
+function setCursorPosition(input, position) {
+  input.setSelectionRange(position, position);
+}
+
+// Function to format all product prices on the page
+function formatProductPrices() {
+  document.querySelectorAll('.product-card').forEach(card => {
+    const priceElement = card.querySelector('.card-body span:first-child');
+    if (priceElement) {
+      const price = parseFloat(card.dataset.price);
+      const currencySymbol = window.CURRENCY_SYMBOL || 'P';
+      priceElement.textContent = `${currencySymbol}${formatCurrency(price)}`;
+    }
+  });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   let cart = [];
   const defaultTax = 8; // Hardcode tax rate for simplicity
@@ -29,6 +63,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Unified API configuration
   const API_BASE_URL = '/api/sales/';
   console.log('Using API base URL:', API_BASE_URL);
+
+  // Format product prices on page load
+  formatProductPrices();
 
   document.getElementById('productSearch').addEventListener('input', (e) => {
     const searchTerm = e.target.value.toLowerCase();
@@ -87,11 +124,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function updateCartDisplay() {
     const cartDiv = document.getElementById('cartItems');
+    const currencySymbol = window.CURRENCY_SYMBOL || 'P';
+    
     cartDiv.innerHTML = cart.map((item, index) => `
       <div class="d-flex justify-content-between align-items-center mb-2">
         <div>
           <span class="fw-bold">${item.name}</span><br>
-          <small>${window.CURRENCY_SYMBOL || 'P'}${formatCurrency(item.price)} x ${item.quantity}</small>
+          <small>${currencySymbol}${formatCurrency(item.price)} x ${item.quantity}</small>
         </div>
         <div>
           <button class="btn btn-sm btn-outline-secondary" 
@@ -316,10 +355,20 @@ document.addEventListener('DOMContentLoaded', () => {
           const card = document.querySelector(`.product-card[data-id="${product.id}"]`);
           if (card) {
             card.dataset.stock = product.stock;
+            card.dataset.price = product.price; // Update price data as well
+            
+            // Update stock display
             const stockElement = card.querySelector('.badge');
             if (stockElement) {
               stockElement.textContent = `Stock: ${product.stock}`;
               stockElement.className = product.stock > 0 ? 'badge bg-success' : 'badge bg-danger';
+            }
+            
+            // Update price display with proper formatting
+            const priceElement = card.querySelector('.card-body span:first-child');
+            if (priceElement) {
+              const currencySymbol = window.CURRENCY_SYMBOL || 'P';
+              priceElement.textContent = `${currencySymbol}${formatCurrency(product.price)}`;
             }
           }
         });
@@ -394,36 +443,64 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Initialize other event listeners
-  // Initialize other event listeners
+  // Initialize other event listeners - FIXED AMOUNT PAID INPUT
   if (document.getElementById('amountPaidInput')) {
+    const amountInput = document.getElementById('amountPaidInput');
     let isFormatting = false;
-    
-    document.getElementById('amountPaidInput').addEventListener('input', (e) => {
-      if (isFormatting) return; // Prevent infinite loop
+
+    amountInput.addEventListener('input', (e) => {
+      if (isFormatting) return;
       
       const input = e.target;
       const cursorPosition = input.selectionStart;
-      const oldValue = input.value;
-      const oldLength = oldValue.length;
+      let value = input.value.replace(/,/g, ''); // Remove existing commas
       
-      // Get raw value without commas
-      let value = input.value.replace(/,/g, '');
+      // Allow only numbers and one decimal point
+      if (!/^\d*\.?\d*$/.test(value)) {
+        value = value.slice(0, -1);
+      }
       
-      // Only format if it's a valid number
-      if (value && !isNaN(value) && value !== '') {
+      // Apply thousand separators in real-time if there's a valid number
+      if (value && !isNaN(value) && value.trim() !== '') {
         isFormatting = true;
         
-        const formatted = formatCurrency(parseFloat(value));
-        input.value = formatted;
+        // Split by decimal point
+        const parts = value.split('.');
+        const integerPart = parts[0];
         
-        // Restore cursor position accounting for new commas
-        const newLength = formatted.length;
-        const lengthDiff = newLength - oldLength;
-        const newCursorPosition = Math.max(0, cursorPosition + lengthDiff);
-        input.setSelectionRange(newCursorPosition, newCursorPosition);
-        
-        isFormatting = false;
+        // Add thousand separators to integer part if it has 4+ digits
+        if (integerPart.length >= 4) {
+          const formattedInteger = parseInt(integerPart).toLocaleString();
+          const formattedValue = parts.length > 1 ? `${formattedInteger}.${parts[1]}` : formattedInteger;
+          
+          input.value = formattedValue;
+          
+          // Adjust cursor position
+          const addedCommas = formattedValue.length - value.length;
+          const newCursorPos = Math.max(0, cursorPosition + addedCommas);
+          setTimeout(() => {
+            input.setSelectionRange(newCursorPos, newCursorPos);
+            isFormatting = false;
+          }, 0);
+        } else {
+          input.value = value;
+          isFormatting = false;
+        }
+      } else {
+        input.value = value;
+      }
+      
+      calculateChange();
+    });
+
+    // Clean up formatting on blur if needed
+    amountInput.addEventListener('blur', (e) => {
+      const input = e.target;
+      let value = input.value.replace(/,/g, '');
+      
+      if (value && !isNaN(value) && value.trim() !== '') {
+        const num = parseFloat(value);
+        input.value = formatInputCurrency(num);
       }
       
       calculateChange();
