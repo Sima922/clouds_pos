@@ -5,7 +5,9 @@ from django.db.models import Sum, F
 from django.utils import timezone
 from datetime import timedelta, datetime
 from django.core.exceptions import FieldError
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.contrib import messages
+from django.shortcuts import redirect
 from io import BytesIO
 from core.utils import currency
 
@@ -39,7 +41,22 @@ def get_user_subscription(user):
     return getattr(user, 'owned_subscription', None)
 
 
-class ReportsDashboardView(LoginRequiredMixin, TemplateView):
+class ReportsAccessMixin(UserPassesTestMixin):
+    """
+    Mixin to restrict access to reports - only allow owners and admins
+    """
+    def test_func(self):
+        user = self.request.user
+        if user.is_superuser:
+            return True
+        return user.is_authenticated and user.role in ['owner', 'admin']
+    
+    def handle_no_permission(self):
+        messages.error(self.request, "You don't have permission to access reports.")
+        return redirect('dashboard')
+
+
+class ReportsDashboardView(LoginRequiredMixin, ReportsAccessMixin, TemplateView):
     template_name = 'reports/dashboard.html'
     
     def get_context_data(self, **kwargs):
@@ -185,7 +202,7 @@ class ReportsDashboardView(LoginRequiredMixin, TemplateView):
         return context
 
 
-class SalesReportView(LoginRequiredMixin, TemplateView):
+class SalesReportView(LoginRequiredMixin, ReportsAccessMixin, TemplateView):
     # Renders or exports a detailed sales report scoped by subscription
     template_name = 'reports/dashboard.html'  # fallback if needed
 
